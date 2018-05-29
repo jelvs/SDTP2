@@ -33,6 +33,7 @@ import utils.IP;
 import utils.ServiceDiscovery;
 
 import java.util.Date;
+
 import org.bson.Document;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
@@ -48,23 +49,29 @@ public class NamenodeRest implements Namenode {
 
     private static boolean kafka = false;
 
-    private  MongoCollection<Document> table;
+    private MongoCollection<Document> table;
 
     Trie<String, List<String>> names = new PatriciaTrie<>();
 
     Map<String, Datanode> datanodes;
 
+    MongoClient mongo;
+    MongoDatabase db;
+
 
     public NamenodeRest() {
-        MongoClientURI uri = new MongoClientURI("mongodb://mongo1,mongo2,mongo3/?w=2&readPreference=secondary");
-        try (MongoClient mongo = new MongoClient(uri)) {
+        MongoClientURI uri = new MongoClientURI("mongodb://mongo1,mongo2,mongo3/?w=majority&r=majority&readPreference=secondary");
+        try {
 
-            MongoDatabase db = mongo.getDatabase("testDB");
+            mongo = new MongoClient(uri);
+
+            db = mongo.getDatabase("testDB");
 
             table = db.getCollection("col");
 
 
-
+        } catch (Exception e) {
+            System.err.println("ERROR CONNECTING TO MONGO");
         }
         datanodes = new ConcurrentHashMap<String, Datanode>();
 
@@ -121,7 +128,6 @@ public class NamenodeRest implements Namenode {
             dataNodeKafkaDiscovery.start();
 
         }
-
     }
 
 
@@ -139,24 +145,19 @@ public class NamenodeRest implements Namenode {
     @Override
     public synchronized void create(String name, List<String> blocks) {
 
+        //System.err.println("CREEEEEEATTE");
+            Document searchQuery = new Document();
+            searchQuery.put("name", name);
+            searchQuery.put("blocks", blocks);
 
+            if (table.find(searchQuery).first() != null) {
+                logger.info("Namenode create CONFLICT");
+                throw new WebApplicationException(Status.CONFLICT);
+            } else {
+                table.insertOne(searchQuery);
+                //System.err.println("CONFLICT ETRCYIVUBH");
 
-           Document searchQuery = new Document();
-           boolean exists = false;
-           for (Document doc : table.find(searchQuery)) {
-               if (doc.containsKey(name))
-                   exists = true;
-
-           }
-           if (exists) {
-               logger.info("Namenode create CONFLICT");
-               throw new WebApplicationException(Status.CONFLICT);
-           } else {
-               searchQuery.put("name", name);
-               searchQuery.put("blocks", blocks);
-               table.insertOne(searchQuery);
-           }
-
+            }
 
     }
 
@@ -165,15 +166,16 @@ public class NamenodeRest implements Namenode {
         ArrayList<Document> keys = new ArrayList<>();
         List<Document> list = table.find().into(new ArrayList<>());
         for (Document doc : list) {
-            keys.addAll((ArrayList)doc.get(prefix));
+            keys.addAll((ArrayList) doc.get(prefix));
 
-        }if (!keys.isEmpty()){
-            for(Document key: keys) {
+        }
+        if (!keys.isEmpty()) {
+            for (Document key : keys) {
                 table.deleteOne(key);
             }
-        }else{
+        } else {
             logger.info("Namenode delete NOT FOUND");
-            throw new WebApplicationException( Status.NOT_FOUND );
+            throw new WebApplicationException(Status.NOT_FOUND);
         }
 
     }
@@ -201,7 +203,7 @@ public class NamenodeRest implements Namenode {
         List<String> blocks = new ArrayList<>();
         List<Document> list = table.find().into(new ArrayList<>());
         for (Document names : list) {
-            blocks  = (List<String>) names.get(name);
+            blocks = (List<String>) names.get(name);
         }
         //List<String> blocks = names.get(name);
         if (blocks.isEmpty())
