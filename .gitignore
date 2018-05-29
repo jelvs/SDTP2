@@ -1,0 +1,9 @@
+target/*
+.settings
+.classpath
+.project
+/target/
+/bin/
+.DS_Store
+.idea
+*.iml
