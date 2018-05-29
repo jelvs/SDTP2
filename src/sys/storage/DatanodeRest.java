@@ -4,9 +4,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
+import java.security.NoSuchAlgorithmException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.net.ssl.SSLContext;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response.Status;
 
@@ -69,7 +71,7 @@ public class DatanodeRest implements Datanode {
 		return data;
 	}
 
-	public static void main(String[] args) throws UnknownHostException, URISyntaxException {
+	public static void main(String[] args) throws UnknownHostException, URISyntaxException, NoSuchAlgorithmException {
 		System.setProperty("java.net.preferIPv4Stack", "true");
 
 		String port = DATANODE_PORT_DEFAULT;
@@ -80,7 +82,7 @@ public class DatanodeRest implements Datanode {
 		ResourceConfig config = new ResourceConfig();
 		String myAddress = "https://" + IP.hostAddress() + ":" + port;
 		config.register(new DatanodeRest(myAddress));
-		JdkHttpServerFactory.createHttpServer(URI.create(URI_BASE), config);
+		JdkHttpServerFactory.createHttpServer(URI.create(URI_BASE), config, SSLContext.getDefault());
 
 		System.err.println("Datanode ready....");
 		if(!kafka) {

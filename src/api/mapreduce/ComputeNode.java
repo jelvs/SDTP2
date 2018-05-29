@@ -8,7 +8,7 @@ import javax.xml.ws.WebFault;
 public interface ComputeNode {
     static final String PATH = "/mapreduce";
     static final String NAME = "ComputeService";
-    static final String NAMESPACE = "https://sd2018";
+    static final String NAMESPACE = "http://sd2018";
     static final String INTERFACE = "api.mapreduce.ComputeNode";
 
     @WebFault
