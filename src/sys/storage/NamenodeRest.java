@@ -60,7 +60,7 @@ public class NamenodeRest implements Namenode {
 
 
     public NamenodeRest() {
-        MongoClientURI uri = new MongoClientURI("mongodb://mongo1,mongo2,mongo3/?w=2&readPreference=secondary");
+        MongoClientURI uri = new MongoClientURI("mongodb://mongo1,mongo2,mongo3/?w=majority&r=majority&readPreference=secondary");
         try {
 
             mongo = new MongoClient(uri);
@@ -70,7 +70,7 @@ public class NamenodeRest implements Namenode {
             table = db.getCollection("col");
 
 
-        }catch (Exception e){
+        } catch (Exception e) {
             System.err.println("ERROR CONNECTING TO MONGO");
         }
         datanodes = new ConcurrentHashMap<String, Datanode>();
@@ -145,26 +145,20 @@ public class NamenodeRest implements Namenode {
     @Override
     public synchronized void create(String name, List<String> blocks) {
 
-        System.err.println("CREEEEEEATTE");
-
-        try {
+        //System.err.println("CREEEEEEATTE");
             Document searchQuery = new Document();
             searchQuery.put("name", name);
             searchQuery.put("blocks", blocks);
 
-            System.err.println("TABLE: " + table);
-
             if (table.find(searchQuery).first() != null) {
-                table.insertOne(searchQuery);
-            } else {
-                System.err.println("CONFLICT ETRCYIVUBH");
                 logger.info("Namenode create CONFLICT");
                 throw new WebApplicationException(Status.CONFLICT);
+            } else {
+                table.insertOne(searchQuery);
+                //System.err.println("CONFLICT ETRCYIVUBH");
+
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.out.println("EXCEPTION CAUGHT");
-        }
+
     }
 
     @Override
