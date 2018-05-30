@@ -2,15 +2,13 @@ package sys.storage.dropbox;
 
 import api.storage.Datanode;
 import com.github.scribejava.core.builder.ServiceBuilder;
-import com.github.scribejava.core.model.OAuth2AccessToken;
-import com.github.scribejava.core.model.OAuthRequest;
-import com.github.scribejava.core.model.Response;
-import com.github.scribejava.core.model.Verb;
+import com.github.scribejava.core.model.*;
 import com.github.scribejava.core.oauth.OAuth20Service;
 import kafka.Publisher;
 import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.pac4j.scribe.builder.api.DropboxApi20;
+import sys.storage.BlockIO;
 import sys.storage.DatanodeRest;
 import sys.storage.dropbox.msgs.*;
 import utils.IP;
@@ -40,7 +38,8 @@ public class DropboxDatanodeServer implements Datanode{
     private static final String LIST_FOLDER_CONTINUE_V2_URL = "https://api.dropboxapi.com/2/files/list_folder/continue";
     private static final String CREATE_FOLDER_V2_URL = "https://api.dropboxapi.com/2/files/create_folder_v2";
     private static final String DELETE = "https://api.dropboxapi.com/2/file_requests/delete_v2";
-    private static final String PATH = "/home/sd";
+    private static final String PATH = "/Datanode/";
+    private static final String TOKEN = "85W107GG8ZgAAAAAAAAEGt4jS8VXi9Dkr6vYu3lkYyQVJG_XIvs7QaFTTugpfjHy";
 
     private String path;
 
@@ -50,17 +49,20 @@ public class DropboxDatanodeServer implements Datanode{
 
     protected OAuth20Service service;
     protected OAuth2AccessToken accessToken;
+    private String address;
 
-    protected DropboxDatanodeServer(){
+    protected DropboxDatanodeServer(String myURL){
+        this.address = myURL;
         try {
             OAuthCallbackServlet.start();
-            service = new ServiceBuilder().apiKey(apiKey).apiSecret(apiSecret)
-                    .callback(OAuthCallbackServlet.CALLBACK_URI)
-                    .build(DropboxApi20.INSTANCE);
+            service = new ServiceBuilder().apiKey(apiKey).apiSecret(apiSecret).build(DropboxApi20.INSTANCE);
+            //.callback(OAuthCallbackServlet.CALLBACK_URI)
+            accessToken = new OAuth2AccessToken(TOKEN);
 
-            try {
+
+            /*try {
                 ObjectInputStream in = new ObjectInputStream(new FileInputStream("key.txt"));
-                accessToken = (OAuth2AccessToken) in.readObject();
+
             } catch (FileNotFoundException e) {
 
             }
@@ -82,7 +84,8 @@ public class DropboxDatanodeServer implements Datanode{
                 e.printStackTrace();
             }
 
-            path = PATH + utils.Random.key64();
+            path = PATH ;//+ utils.Random.key64();*/
+
 
         } catch (Exception x) {
             x.printStackTrace();
@@ -102,29 +105,39 @@ public class DropboxDatanodeServer implements Datanode{
 
 
         public static void start() {
-            ResourceConfig config = new ResourceConfig();
-            config.register(new OAuthCallbackServlet());
-            JdkHttpServerFactory.createHttpServer(URI.create(CALLBACK_URI), config);
+            try {
+
+
+                ResourceConfig config = new ResourceConfig();
+                config.register(new OAuthCallbackServlet());
+                JdkHttpServerFactory.createHttpServer(URI.create(CALLBACK_URI), config, SSLContext.getDefault());
+            }catch(Exception e){
+                System.err.println("CATCH!!");
+                e.printStackTrace();
+            }
         }
     }
 
     public String createBlock(byte[] data){
         try {
-            System.err.println("LETS TRY");
+            //System.err.println("LETS TRY");
             OAuthRequest createFile = new OAuthRequest(Verb.POST, CREATE);
             createFile.addHeader("Content-Type", OCTET_CONTENT_TYPE);
             createFile.addHeader("Dropbox-API-arg", JSON.encode(new CreateFileArgs(path, ADD, false, false)));
             createFile.setPayload(data);
             service.signRequest(accessToken, createFile);
+
             Response r = service.execute(createFile);
+            System.err.println("SIGNREQUEST");
             CreateFileReturn res = JSON.decode(r.getBody(), CreateFileReturn.class);
-            System.err.println("CATCH IT!");
+            System.err.println("after");
             if (r.getCode() == 409) {
                 System.err.println("Dropbox file already exists");
                 return null;
             } else if (r.getCode() == 200) {
                 System.err.println("Dropbox file was created with success");
                 return res.getPath();
+                //return path;
             } else {
                 System.err.println("Unexpected error HTTP: " + r.getCode());
                 return null;
@@ -146,7 +159,6 @@ public class DropboxDatanodeServer implements Datanode{
             getFile.addHeader("Dropbox-API-arg", JSON.encode(new GetFileArgs(path)));
 
             byte[] response;
-
             service.signRequest(accessToken, getFile);
             Response r = service.execute(getFile);
             if (r.getCode() == 200) {
@@ -241,7 +253,7 @@ public class DropboxDatanodeServer implements Datanode{
             String URI_BASE = "https://0.0.0.0:" + port + "/";
             ResourceConfig config = new ResourceConfig();
             String myAddress = "https://" + IP.hostAddress() + ":" + port;
-            config.register(new DatanodeRest(myAddress));
+            config.register(new DropboxDatanodeServer(myAddress));
             JdkHttpServerFactory.createHttpServer(URI.create(URI_BASE), config, SSLContext.getDefault());
 
             System.err.println("DropboxDatanode ready....");
