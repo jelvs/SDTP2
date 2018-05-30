@@ -66,7 +66,7 @@ public class ServiceDiscovery {
 		}
 
 		if (!group.isMulticastAddress()) {
-			System.out.println("Not a multicast address (use range : 224.0.0.0 -- 239.255.255.255)");
+			System.err.println("Not a multicast address (use range : 224.0.0.0 -- 239.255.255.255)");
 			System.exit(1);
 		}
 
@@ -76,7 +76,7 @@ public class ServiceDiscovery {
 			byte[] buffer = new byte[MAX_DATAGRAM_SIZE];
 			byte[] reply = serviceAddress.getBytes();
 			while (true) {
-				try {			
+				try {
 					DatagramPacket request = new DatagramPacket(buffer, buffer.length);
 					socket.receive(request);
 					String service = new String(request.getData(), 0, request.getLength());

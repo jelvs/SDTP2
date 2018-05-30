@@ -19,6 +19,7 @@ import javax.net.ssl.SSLContext;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response.Status;
 
+import com.mongodb.client.model.Filters;
 import org.apache.commons.collections4.Trie;
 import org.apache.commons.collections4.trie.PatriciaTrie;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -29,6 +30,7 @@ import api.storage.Datanode;
 import api.storage.Namenode;
 import kafka.Publisher;
 import kafka.Subscriber;
+import org.omg.CosNaming.NamingContextPackage.NotFound;
 import utils.IP;
 import utils.ServiceDiscovery;
 
@@ -134,8 +136,7 @@ public class NamenodeRest implements Namenode {
     @Override
     public synchronized List<String> list(String prefix) {
         List<String> prefixes = new ArrayList<>();
-        List<Document> list = table.find().into(new ArrayList<>());
-        for (Document doc : list) {
+        for (Document doc : table.find(Filters.regex("name", prefix))) {
             prefixes.addAll((List<String>) doc.get(prefix));
 
         }
@@ -145,7 +146,7 @@ public class NamenodeRest implements Namenode {
     @Override
     public synchronized void create(String name, List<String> blocks) {
 
-        //System.err.println("CREEEEEEATTE");
+            //System.err.println("CREEEEEEATTE");
             Document searchQuery = new Document();
             searchQuery.put("name", name);
             searchQuery.put("blocks", blocks);
@@ -158,59 +159,51 @@ public class NamenodeRest implements Namenode {
                 //System.err.println("CONFLICT ETRCYIVUBH");
 
             }
+            System.err.println(name + "/" + blocks.size());
 
     }
 
     @Override
     public synchronized void delete(String prefix) {
-        ArrayList<Document> keys = new ArrayList<>();
-        List<Document> list = table.find().into(new ArrayList<>());
-        for (Document doc : list) {
-            keys.addAll((ArrayList) doc.get(prefix));
 
-        }
-        if (!keys.isEmpty()) {
-            for (Document key : keys) {
-                table.deleteOne(key);
-            }
-        } else {
+        Document searchQuery = new Document();
+        searchQuery.put("name", prefix);
+
+        if (table.find(Filters.regex("name", prefix)).first()!= null) {
             logger.info("Namenode delete NOT FOUND");
             throw new WebApplicationException(Status.NOT_FOUND);
+        }else{
+            table.deleteMany(Filters.regex("name", prefix));
         }
+
 
     }
 
     @Override
     public synchronized void update(String name, List<String> blocks) {
-        Document oldBlocks = new Document();
-        Document searchQuery = new Document();
-        searchQuery.put(name, blocks);
-        for (Document doc : table.find(searchQuery)) {
-            oldBlocks.put(name, doc.get(name));
+        Document updateBlocks = new Document();
+        updateBlocks.put("blocks", blocks);
 
-        }
-        if (oldBlocks.isEmpty()) {
-            logger.info("Namenode update NOT FOUND");
+        Document searchQuery = new Document();
+        searchQuery.put("name", name);
+
+        if(!table.updateOne(searchQuery,updateBlocks).wasAcknowledged()){
             throw new WebApplicationException(Status.NOT_FOUND);
-        } else {
-            table.updateOne(oldBlocks, searchQuery);
         }
 
     }
 
     @Override
     public synchronized List<String> read(String name) {
-        List<String> blocks = new ArrayList<>();
-        List<Document> list = table.find().into(new ArrayList<>());
-        for (Document names : list) {
-            blocks = (List<String>) names.get(name);
+        Document searchQuery = new Document();
+        searchQuery.put("name", name);
+        Document result = table.find(searchQuery).first();
+        if(result != null){
+            return (List<String>)result.get("blocks");
+
         }
-        //List<String> blocks = names.get(name);
-        if (blocks.isEmpty())
-            logger.info("Namenode read NOT FOUND");
-        else
-            logger.info("Blocks for Blob: " + name + " : " + blocks);
-        return blocks;
+        throw new WebApplicationException(Status.NOT_FOUND);
+
     }
 
     public static void main(String[] args) throws UnknownHostException, URISyntaxException, NoSuchAlgorithmException {

@@ -29,6 +29,7 @@ public class DatanodeClient implements Datanode {
 	private URI baseURI;
 
 	public DatanodeClient(String location) {
+
 		ClientConfig config = new ClientConfig();
 		configureClinet(config);
 		//client = ClientBuilder.newClient(config);
@@ -42,6 +43,7 @@ public class DatanodeClient implements Datanode {
 		config.property(ClientProperties.READ_TIMEOUT, MapReduceCommon.READ_TIMEOUT);
 	}
 
+	@SuppressWarnings("Duplicates")
 	private <T> T processRequest(RequestHandler<T> requestHandler) {
 		for (int i = 0; i < NUM_TRIES; i++) {
 			try {

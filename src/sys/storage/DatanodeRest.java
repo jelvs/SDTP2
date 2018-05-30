@@ -72,24 +72,29 @@ public class DatanodeRest implements Datanode {
 	}
 
 	public static void main(String[] args) throws UnknownHostException, URISyntaxException, NoSuchAlgorithmException {
-		System.setProperty("java.net.preferIPv4Stack", "true");
+		try {
+			System.setProperty("java.net.preferIPv4Stack", "true");
 
-		String port = DATANODE_PORT_DEFAULT;
-		if (args.length > 0 && args[0] != null) {
-			port = args[0];
-		}
-		String URI_BASE = "https://0.0.0.0:" + port + "/";
-		ResourceConfig config = new ResourceConfig();
-		String myAddress = "https://" + IP.hostAddress() + ":" + port;
-		config.register(new DatanodeRest(myAddress));
-		JdkHttpServerFactory.createHttpServer(URI.create(URI_BASE), config, SSLContext.getDefault());
+			String port = DATANODE_PORT_DEFAULT;
+			if (args.length > 0 && args[0] != null) {
+				port = args[0];
+			}
+			String URI_BASE = "https://0.0.0.0:" + port + "/";
+			ResourceConfig config = new ResourceConfig();
+			String myAddress = "https://" + IP.hostAddress() + ":" + port;
+			config.register(new DatanodeRest(myAddress));
+			JdkHttpServerFactory.createHttpServer(URI.create(URI_BASE), config, SSLContext.getDefault());
 
-		System.err.println("Datanode ready....");
-		if(!kafka) {
-		ServiceDiscovery.multicastReceive(ServiceDiscovery.DATANODE_SERVICE_NAME, myAddress+"/");
-		}
-		else {
-			Publisher pub = new Publisher("Datanode", myAddress + "/");
+			System.err.println("Datanode ready....");
+			if (!kafka) {
+
+				ServiceDiscovery.multicastReceive(ServiceDiscovery.DATANODE_SERVICE_NAME, myAddress + "/");
+				//System.err.println("OLA");
+			} else {
+				Publisher pub = new Publisher("Datanode", myAddress + "/");
+			}
+		}catch(Exception e){
+			e.printStackTrace();
 		}
 	}
 }
