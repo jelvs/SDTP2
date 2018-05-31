@@ -1,14 +1,14 @@
 package sys.storage.dropbox.msgs;
 
 public class CreateFileReturn{
-	
-	 String path_display;
 
-	 public void setPath(String path_display){
-	 		this.path_display=path_display;
+	 String path_lower;
+
+	 public void setPath(String path_lower){
+	 		this.path_lower=path_lower;
 	 }
 
 	 public String getPath(){
-	 	return path_display;
+	 	return path_lower;
 	 }
 }
