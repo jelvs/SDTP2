@@ -50,7 +50,6 @@ public class DropboxDatanodeServer implements Datanode {
 
     protected DropboxDatanodeServer(String myURL) {
         this.address = myURL;
-        //path = PATH + "/";
         try {
             //OAuthCallbackServlet.start();
             service = new ServiceBuilder().apiKey(apiKey).apiSecret(apiSecret).build(DropboxApi20.INSTANCE);

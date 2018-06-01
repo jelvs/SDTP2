@@ -4,13 +4,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.logging.Logger;
@@ -33,8 +27,6 @@ import kafka.Subscriber;
 import org.omg.CosNaming.NamingContextPackage.NotFound;
 import utils.IP;
 import utils.ServiceDiscovery;
-
-import java.util.Date;
 
 import org.bson.Document;
 import com.mongodb.MongoClient;
@@ -136,11 +128,20 @@ public class NamenodeRest implements Namenode {
     @Override
     public synchronized List<String> list(String prefix) {
         List<String> prefixes = new ArrayList<>();
-        for (Document doc : table.find(Filters.regex("name", prefix))) {
-            prefixes.addAll((List<String>) doc.get(prefix));
+        try {
+            for (Document doc : table.find(Filters.regex("name", prefix))) {
 
+                prefixes.addAll((List<String>) doc.get(doc.containsKey(prefix)));
+
+            }
+            System.err.println("HELLO");
+            return prefixes;
+
+        }catch(Exception e){
+            System.err.println("CATCH");
+            e.printStackTrace();
+            return prefixes;
         }
-        return prefixes;
     }
 
     @Override
@@ -160,6 +161,7 @@ public class NamenodeRest implements Namenode {
 
             }
             System.err.println(name + "/" + blocks.size());
+            throw new WebApplicationException(Status.NO_CONTENT);
 
     }
 
