@@ -129,12 +129,14 @@ public class NamenodeRest implements Namenode {
     public synchronized List<String> list(String prefix) {
         List<String> prefixes = new ArrayList<>();
         try {
-            for (Document doc : table.find(Filters.regex("name", prefix))) {
+            for (Document doc : table.find(Filters.regex("name", "^(" + prefix + ")"))) {
 
-                prefixes.addAll((List<String>) doc.get(doc.containsKey(prefix)));
+                        prefixes.add((String)doc.get("name"));
+
 
             }
             System.err.println("HELLO");
+            System.err.println("PREFIXOS: " + prefixes);
             return prefixes;
 
         }catch(Exception e){
@@ -171,12 +173,13 @@ public class NamenodeRest implements Namenode {
         Document searchQuery = new Document();
         searchQuery.put("name", prefix);
 
-        if (table.find(Filters.regex("name", prefix)).first()!= null) {
+        if (table.find(Filters.regex("name", prefix)).first() == null) {
             logger.info("Namenode delete NOT FOUND");
             throw new WebApplicationException(Status.NOT_FOUND);
         }else{
             table.deleteMany(Filters.regex("name", prefix));
         }
+
 
 
     }
