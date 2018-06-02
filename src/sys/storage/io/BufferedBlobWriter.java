@@ -6,6 +6,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.logging.Logger;
 
 import api.storage.BlobStorage.BlobWriter;
 import api.storage.Datanode;
@@ -32,6 +33,9 @@ public class BufferedBlobWriter implements BlobWriter {
 	
 	private final static Random gen = new Random();
 	
+	private static Logger logger = Logger.getLogger(BufferedBlobWriter.class.getName());
+	
+	
 	public BufferedBlobWriter(String name, Namenode namenode, Map<String, Datanode> datanodes, int blockSize ) {
 		this.name = name;
 		this.namenode = namenode;
@@ -43,7 +47,28 @@ public class BufferedBlobWriter implements BlobWriter {
 
 	private void flush( byte[] data, boolean eob ) {
 		int idx = gen.nextInt(datanodes.size());
-		blocks.add( datanodesList.get(idx).createBlock(data)  );
+		String blockRef = null;
+		
+		
+		if(datanodes.size() >=2) {
+			int idx1;
+			for(;;) {
+				idx1 = gen.nextInt(datanodes.size());
+				if(idx != idx1)
+					break;
+			}
+			blockRef= datanodesList.get(idx1).createBlock(data);
+			
+		}
+		String blockRef1 =( datanodesList.get(idx).createBlock(data)  );
+		
+		if(blockRef != null) {
+			blocks.add(blockRef + " " + blockRef1);
+			logger.info(blockRef + " " + blockRef1);
+		}
+		else {
+			blocks.add(" " + blockRef1);
+		}
 		if( eob ) {
 			namenode.create(name, blocks);
 			blocks.clear();

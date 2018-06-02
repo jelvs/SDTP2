@@ -7,10 +7,10 @@ public class MapReduceCommon {
 
 	public static String[] getAddressFromBlockUUID(String block) {
 		String[] ret = null;
-		
+		int idxBlank = block.lastIndexOf(" ");
 		int idx = block.lastIndexOf("/datanode");
 		if (idx > 0) {
-			ret = new String[]{block.substring(0, idx+1), block.substring(idx+10)};
+			ret = new String[]{block.substring(idxBlank+1, idx+1), block.substring(idx+10)};
 		}
 		
 		return ret;

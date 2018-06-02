@@ -65,6 +65,7 @@ public class BufferedBlobReader implements BlobReader {
 		logger.info("accessing block on URL: " + block);
 		try { 
 		String[] components = MapReduceCommon.getAddressFromBlockUUID(block);
+		logger.info(components[0] + "RETURNED THIS SHIT");
 		Datanode datanode = datanodes.get(components[0]);
 		if(datanode == null) 
 			logger.info("Unknown datanode: " + components[0]);
