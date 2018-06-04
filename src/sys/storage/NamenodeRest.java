@@ -37,198 +37,224 @@ import com.mongodb.client.MongoDatabase;
 
 public class NamenodeRest implements Namenode {
 
-    private static final String NAMENODE_PORT_DEFAULT = "9981";
+	private static final String NAMENODE_PORT_DEFAULT = "9981";
 
-    private static Logger logger = Logger.getLogger(NamenodeClient.class.toString());
+	private static Logger logger = Logger.getLogger(NamenodeClient.class.toString());
 
-    private static boolean kafka = false;
+	private static boolean kafka = false;
 
-    private MongoCollection<Document> table;
+	private MongoCollection<Document> table;
 
-    Trie<String, List<String>> names = new PatriciaTrie<>();
+	Trie<String, List<String>> names = new PatriciaTrie<>();
 
-    Map<String, Datanode> datanodes;
+	Map<String, Datanode> datanodes;
 
-    MongoClient mongo;
-    MongoDatabase db;
-
-
-    public NamenodeRest() {
-        MongoClientURI uri = new MongoClientURI("mongodb://mongo1,mongo2,mongo3/?w=majority&r=majority&readPreference=secondary");
-        try {
-
-            mongo = new MongoClient(uri);
-
-            db = mongo.getDatabase("testDB");
-
-            table = db.getCollection("col");
+	MongoClient mongo;
+	MongoDatabase db;
 
 
-        } catch (Exception e) {
-            System.err.println("ERROR CONNECTING TO MONGO");
-        }
-        datanodes = new ConcurrentHashMap<String, Datanode>();
+	public NamenodeRest() {
+		MongoClientURI uri = new MongoClientURI("mongodb://mongo1,mongo2,mongo3/?w=majority&r=majority&readPreference=secondary");
+		try {
 
-        if (!kafka) {
-            Thread dataNodeDiscovery = new Thread() {
-                public void run() {
-                    while (true) {
-                        String[] datanodeNames = ServiceDiscovery.multicastSend(ServiceDiscovery.DATANODE_SERVICE_NAME);
-                        if (datanodeNames != null) {
-                            for (String datanode : datanodeNames) {
-                                if (!datanodes.containsKey(datanode)) {
-                                    logger.info("New Datanode discovered: " + datanode);
-                                    datanodes.put(datanode, new DatanodeClient(datanode));
-                                }
-                            }
-                        }
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            //nothing to be done
-                        }
-                    }
-                }
-            };
-            dataNodeDiscovery.start();
-        } else {
+			mongo = new MongoClient(uri);
 
-            Thread dataNodeKafkaDiscovery = new Thread() {
+			db = mongo.getDatabase("testDB");
 
-                public void run() {
-                    Collection<String> topics = new ArrayList<String>(Arrays.asList(new String[]{"Datanode"}));
-                    Subscriber sub = new Subscriber(topics);
-                    while (true) {
-                        ConsumerRecords<String, String> records = sub.info();
-                        if (records != null) {
-                            records.forEach(datanode -> {
-                                if (!datanodes.containsKey(datanode.value())) {
-                                    logger.info("New Datanode discovered: " + datanode.value());
-                                    datanodes.put(datanode.value(), new DatanodeClient(datanode.value()));
-                                }
-                            });
-                        }
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            //nothing to be done
-                        }
-
-                    }
-
-                }
-
-            };
-            dataNodeKafkaDiscovery.start();
-
-        }
-    }
+			table = db.getCollection("col");
 
 
-    @Override
-    public synchronized List<String> list(String prefix) {
-        List<String> prefixes = new ArrayList<>();
-        try {
-            for (Document doc : table.find(Filters.regex("name", "^(" + prefix + ")"))) {
+		} catch (Exception e) {
+			System.err.println("ERROR CONNECTING TO MONGO");
+		}
+		datanodes = new ConcurrentHashMap<String, Datanode>();
 
-                        prefixes.add((String)doc.get("name"));
+		if (!kafka) {
+			Thread dataNodeDiscovery = new Thread() {
+				ArrayList<String> datanodesAlive = new ArrayList<>();
+				double currentTime = System.currentTimeMillis();
+				public void run() {
+					while (true) {
+						String[] datanodeNames = ServiceDiscovery.multicastSend(ServiceDiscovery.DATANODE_SERVICE_NAME);
+						if (datanodeNames != null) {
+
+							for (String datanode : datanodeNames) {
+
+								if (!datanodesAlive.contains(datanode)) {
+									datanodesAlive.add(datanode);
+								}
+								if (!datanodes.containsKey(datanode)) {
+									logger.info("New Datanode discovered: " + datanode);
+									datanodes.put(datanode, new DatanodeClient(datanode));
+								}
+							}
+
+						}
+						//5 second is enough time to ping man
+						if(System.currentTimeMillis() - currentTime > 5000) {
+							logger.info("NAMENODE datanodes check");
+
+							datanodes.keySet().forEach(datanode -> {
+								if(!datanodesAlive.contains(datanode)) {
+									if(datanodes.remove(datanode) != null) {
+										logger.info("namenode datanodeMissing: " + datanode);
+									}	
+								}
+							});
+
+							//now we only have running datanodes
+							currentTime = System.currentTimeMillis();
+							datanodesAlive.clear();
+						}
+						try {
+							Thread.sleep(1000);
+						} catch (InterruptedException e) {
+							//nothing to be done
+						}
+					}
+				}
+			};
+			dataNodeDiscovery.start();
+		} else {
+
+			Thread dataNodeKafkaDiscovery = new Thread() {
+
+				public void run() {
+					Collection<String> topics = new ArrayList<String>(Arrays.asList(new String[]{"Datanode"}));
+					Subscriber sub = new Subscriber(topics);
+					while (true) {
+						ConsumerRecords<String, String> records = sub.info();
+						if (records != null) {
+							records.forEach(datanode -> {
+								if (!datanodes.containsKey(datanode.value())) {
+									logger.info("New Datanode discovered: " + datanode.value());
+									datanodes.put(datanode.value(), new DatanodeClient(datanode.value()));
+								}
+							});
+						}
+						try {
+							Thread.sleep(1000);
+						} catch (InterruptedException e) {
+							//nothing to be done
+						}
+
+					}
+
+				}
+
+			};
+			dataNodeKafkaDiscovery.start();
+
+		}
+	}
 
 
-            }
-            System.err.println("HELLO");
-            System.err.println("PREFIXOS: " + prefixes);
-            return prefixes;
+	@Override
+	public synchronized List<String> list(String prefix) {
+		List<String> prefixes = new ArrayList<>();
 
-        }catch(Exception e){
-            System.err.println("CATCH");
-            e.printStackTrace();
-            return prefixes;
-        }
-    }
+		for (Document doc : table.find(Filters.regex("name", "^(" + prefix + ")"))) {
 
-    @Override
-    public synchronized void create(String name, List<String> blocks) {
-
-            //System.err.println("CREEEEEEATTE");
-            Document searchQuery = new Document();
-            searchQuery.put("name", name);
-            searchQuery.put("blocks", blocks);
-
-            if (table.find(searchQuery).first() != null) {
-                logger.info("Namenode create CONFLICT");
-                throw new WebApplicationException(Status.CONFLICT);
-            } else {
-                table.insertOne(searchQuery);
-                //System.err.println("CONFLICT ETRCYIVUBH");
-
-            }
-            System.err.println(name + "/" + blocks.size());
-            throw new WebApplicationException(Status.NO_CONTENT);
-
-    }
-
-    @Override
-    public synchronized void delete(String prefix) {
-
-        Document searchQuery = new Document();
-        searchQuery.put("name", prefix);
-
-        if (table.find(Filters.regex("name", prefix)).first() == null) {
-            logger.info("Namenode delete NOT FOUND");
-            throw new WebApplicationException(Status.NOT_FOUND);
-        }else{
-            table.deleteMany(Filters.regex("name", prefix));
-        }
+			prefixes.add((String)doc.get("name"));
 
 
+		}
+		System.err.println("HELLO");
+		System.err.println("PREFIXOS: " + prefixes);
+		return prefixes;
 
-    }
 
-    @Override
-    public synchronized void update(String name, List<String> blocks) {
-        Document updateBlocks = new Document();
-        updateBlocks.put("blocks", blocks);
+	}
 
-        Document searchQuery = new Document();
-        searchQuery.put("name", name);
 
-        if(!table.updateOne(searchQuery,updateBlocks).wasAcknowledged()){
-            throw new WebApplicationException(Status.NOT_FOUND);
-        }
+	@Override
+	public synchronized void create(String name, List<String> blocks) {
+		//System.err.println("CREEEEEEATTE");
+		Document searchQuery = new Document();
+		searchQuery.put("name", name);
+		searchQuery.put("blocks", blocks);
+		
 
-    }
+		if (table.find(searchQuery).first() != null) {
+			logger.info("Namenode create CONFLICT");
+			throw new WebApplicationException(Status.CONFLICT);
+		} else {
+			table.insertOne(searchQuery);
+			//System.err.println("CONFLICT ETRCYIVUBH");
 
-    @Override
-    public synchronized List<String> read(String name) {
-        Document searchQuery = new Document();
-        searchQuery.put("name", name);
-        Document result = table.find(searchQuery).first();
-        if(result != null){
-            return (List<String>)result.get("blocks");
+		}
+		System.err.println(name + "/" + blocks.size());
+		throw new WebApplicationException(Status.NO_CONTENT);
 
-        }
-        throw new WebApplicationException(Status.NOT_FOUND);
+	}
 
-    }
+	@Override
+	public synchronized void delete(String prefix) {
 
-    public static void main(String[] args) throws UnknownHostException, URISyntaxException, NoSuchAlgorithmException {
-        System.setProperty("java.net.preferIPv4Stack", "true");
-        String port = NAMENODE_PORT_DEFAULT;
-        if (args.length > 0 && args[0] != null) {
-            port = args[0];
-        }
-        String URI_BASE = "https://0.0.0.0:" + port + "/";
-        String myAddress = "https://" + IP.hostAddress() + ":" + port;
-        ResourceConfig config = new ResourceConfig();
-        config.register(new NamenodeRest());
-        JdkHttpServerFactory.createHttpServer(URI.create(URI_BASE), config, SSLContext.getDefault());
+		Document searchQuery = new Document();
+		searchQuery.put("name", prefix);
 
-        System.err.println("Namenode ready....");
-        if (!kafka) {
-            ServiceDiscovery.multicastReceive(ServiceDiscovery.NAMENODE_SERVICE_NAME, myAddress + "/");
-        } else {
-            Publisher pub = new Publisher("Namenode", myAddress + "/");
-        }
-    }
+		if (table.find(Filters.regex("name", prefix)).first() == null) {
+			logger.info("Namenode delete NOT FOUND");
+			throw new WebApplicationException(Status.NOT_FOUND);
+		}else{
+			table.deleteMany(Filters.regex("name", prefix));
+		}
+
+
+
+	}
+
+	@Override
+	public synchronized void update(String name, List<String> blocks) {
+		Document updateBlocks = new Document();
+		updateBlocks.put("blocks", blocks);
+
+		Document searchQuery = new Document();
+		searchQuery.put("name", name);
+
+		if(!table.updateOne(searchQuery,updateBlocks).wasAcknowledged()){
+			throw new WebApplicationException(Status.NOT_FOUND);
+		}
+
+	}
+
+	@Override
+	public synchronized List<String> read(String name) {
+		Document searchQuery = new Document();
+		searchQuery.put("name", name);
+		Document result = table.find(searchQuery).first();
+		if(result != null){
+			return (List<String>)result.get("blocks");
+
+		}
+		throw new WebApplicationException(Status.NOT_FOUND);
+
+	}
+	/*
+	public synchronized List<String> listAll() {
+		Document searchQuery = new Document();
+	}
+	**/
+
+	public static void main(String[] args) throws UnknownHostException, URISyntaxException, NoSuchAlgorithmException {
+		System.setProperty("java.net.preferIPv4Stack", "true");
+		String port = NAMENODE_PORT_DEFAULT;
+		if (args.length > 0 && args[0] != null) {
+			port = args[0];
+		}
+		String URI_BASE = "https://0.0.0.0:" + port + "/";
+		String myAddress = "https://" + IP.hostAddress() + ":" + port;
+		ResourceConfig config = new ResourceConfig();
+		config.register(new NamenodeRest());
+		JdkHttpServerFactory.createHttpServer(URI.create(URI_BASE), config, SSLContext.getDefault());
+
+		System.err.println("Namenode ready....");
+		if (!kafka) {
+			ServiceDiscovery.multicastReceive(ServiceDiscovery.NAMENODE_SERVICE_NAME, myAddress + "/");
+		} else {
+			Publisher pub = new Publisher("Namenode", myAddress + "/");
+		}
+	}
 
 }

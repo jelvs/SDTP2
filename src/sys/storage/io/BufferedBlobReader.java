@@ -12,6 +12,7 @@ import api.storage.BlobStorage.BlobReader;
 import api.storage.Datanode;
 import api.storage.Namenode;
 import utils.MapReduceCommon;
+import utils.MapReduceCommon2;
 
 /*
  * 
@@ -30,6 +31,8 @@ public class BufferedBlobReader implements BlobReader {
 	final Iterator<String> blocks;
 
 	final LazyBlockReader lazyBlockIterator;
+	private boolean what = false;
+	private String deadDatanode = null;
 	
 	private static Logger logger = Logger.getLogger(BufferedBlobReader.class.getName());
 	
@@ -62,20 +65,45 @@ public class BufferedBlobReader implements BlobReader {
 	} 
 
 	private List<String> fetchBlockLines(String block) {
+		what = false;
 		logger.info("accessing block on URL: " + block);
 		try { 
 		String[] components = MapReduceCommon.getAddressFromBlockUUID(block);
-		logger.info(components[0] + "RETURNED THIS SHIT");
+		logger.info("datanode:" + components[0] + " " + components[1]+ "RETURNED THIS SHIT");
+		logger.info(deadDatanode);
+		if(deadDatanode != null && deadDatanode.contains(components[0])) {
+			what = true;
+		}
 		Datanode datanode = datanodes.get(components[0]);
-		if(datanode == null) 
+		String dub = components[0];
+		if(datanode == null) {
 			logger.info("Unknown datanode: " + components[0]);
+			what = true;
 		logger.info("Known datanodes:");
 		for(String dn: datanodes.keySet()) {
 			logger.info(dn);
 		}
+		}
 		logger.info("Trying to access target block: " + components[1]);
-		byte[] data = datanode.readBlock( components[1] );
-		return Arrays.asList( new String(data).split("\\R"));
+		byte[] data;
+		if((what == false) && (data = datanode.readBlock( components[1] ))!= null)  {
+			return Arrays.asList( new String(data).split("\\R"));
+		}
+		else {
+			if(deadDatanode == null) {
+				deadDatanode = components[0];
+			}
+			what = true;
+			logger.info("datanode is dead");
+			String[] components1 = MapReduceCommon2.getAddressFromBlockUUID(block, dub);
+			logger.info("datanode:" + components1[0] + " " + components1[1]);
+			logger.info("Trying to access target block: HEL00000000" + components1[1]);
+			datanode = datanodes.get(components1[0]);
+			byte[] data1 = datanode.readBlock( components1[1] );
+			return Arrays.asList( new String(data1).split("\\R"));
+			
+		}
+		
 		} catch (Exception e) {
 			e.printStackTrace();
 			return new ArrayList<String>();

@@ -19,7 +19,7 @@ public class MapReduceCommon2 {
 		int idx = blockUrl.lastIndexOf("/datanode");
 	
 		if (idx > 0) {
-			ret = new String[]{block.substring(0, idx+1), block.substring(idx+10)};
+			ret = new String[]{blockUrl.substring(0, idx+1), blockUrl.substring(idx+10)};
 		}
 		
 		return ret;

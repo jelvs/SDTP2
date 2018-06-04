@@ -34,3 +34,5 @@ dropbox-access-token=85W107GG8ZgAAAAAAAAEGt4jS8VXi9Dkr6vYu3lkYyQVJG_XIvs7QaFTTug
 dropbox-datanode-folder=/datanode
 dropbox-datanode-server-mainclass=sys.storage.dropbox.DropboxDatanodeServer
 dropbox-datanode-server-port=9999
+
+block-regeneration-period=6
