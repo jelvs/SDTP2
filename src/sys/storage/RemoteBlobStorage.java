@@ -1,10 +1,6 @@
 package sys.storage;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -25,6 +21,7 @@ public class RemoteBlobStorage implements BlobStorage {
 	private static Logger logger = Logger.getLogger(RemoteBlobStorage.class.getName());
 	
 	private static boolean kafka = false;
+	final HashMap<String,Integer> blocksCheck = new HashMap<>();
 
 	Namenode namenode;
 	Map<String, Datanode> datanodes;

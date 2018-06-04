@@ -167,7 +167,7 @@ public class DropboxDatanodeServer implements Datanode {
                 return null;
             }
         } catch (Exception e) {
-            System.err.println("CATCH");
+            System.err.println("CATCH READBLOCK ");
             return null;
             //throw new WebApplicationException(Status.NOT_FOUND);
 

@@ -31,6 +31,6 @@ blobstorage-truststore-password=password
 dropbox-app-key=n77x0i4pkxqs8u8
 dropbox-app-secret=dy0zqbsfdh5bhue
 dropbox-access-token=85W107GG8ZgAAAAAAAAEGt4jS8VXi9Dkr6vYu3lkYyQVJG_XIvs7QaFTTugpfjHy
-dropbox-datanode-folder=/datanode
+dropbox-datanode-folder=/Datanode
 dropbox-datanode-server-mainclass=sys.storage.dropbox.DropboxDatanodeServer
 dropbox-datanode-server-port=9999

@@ -54,7 +54,7 @@ public class NamenodeRest implements Namenode {
 
 
     public NamenodeRest() {
-        MongoClientURI uri = new MongoClientURI("mongodb://mongo1,mongo2,mongo3/?w=majority&r=majority&readPreference=secondary");
+        MongoClientURI uri = new MongoClientURI("mongodb://mongo1,mongo2,mongo3/?w=majority&readConcernLevel=majority&readPreference=secondary");
         try {
 
             mongo = new MongoClient(uri);
@@ -62,6 +62,7 @@ public class NamenodeRest implements Namenode {
             db = mongo.getDatabase("testDB");
 
             table = db.getCollection("col");
+
 
 
         } catch (Exception e) {
@@ -128,10 +129,10 @@ public class NamenodeRest implements Namenode {
     @Override
     public synchronized List<String> list(String prefix) {
         List<String> prefixes = new ArrayList<>();
-        try {
-            for (Document doc : table.find(Filters.regex("name", "^(" + prefix + ")"))) {
+        //try {
+            for (Document doc : table.find(Filters.regex("_id", "^(" + prefix + ")"))) {
 
-                        prefixes.add((String)doc.get("name"));
+                        prefixes.add((String)doc.get("_id"));
 
 
             }
@@ -139,31 +140,38 @@ public class NamenodeRest implements Namenode {
             System.err.println("PREFIXOS: " + prefixes);
             return prefixes;
 
-        }catch(Exception e){
+        /*}catch(Exception e){
             System.err.println("CATCH");
             e.printStackTrace();
             return prefixes;
-        }
+        }*/
     }
 
     @Override
     public synchronized void create(String name, List<String> blocks) {
 
-            //System.err.println("CREEEEEEATTE");
-            Document searchQuery = new Document();
-            searchQuery.put("name", name);
-            searchQuery.put("blocks", blocks);
+            try{
+                //System.err.println("CREEEEEEATTE");
+                Document searchQuery = new Document();
+                searchQuery.put("_id", name);
+                //searchQuery.put("name", name);
+                searchQuery.put("blocks", blocks);
+                table.insertOne(searchQuery);
+            }catch(Exception e){
+                logger.info("Namenode create CONFLICT");
+                throw new WebApplicationException(Status.CONFLICT);
+            }
 
-            if (table.find(searchQuery).first() != null) {
+           /* if (table.find(searchQuery).first() != null) {
                 logger.info("Namenode create CONFLICT");
                 throw new WebApplicationException(Status.CONFLICT);
             } else {
-                table.insertOne(searchQuery);
+
                 //System.err.println("CONFLICT ETRCYIVUBH");
 
             }
             System.err.println(name + "/" + blocks.size());
-            throw new WebApplicationException(Status.NO_CONTENT);
+            throw new WebApplicationException(Status.NO_CONTENT);*/
 
     }
 
@@ -171,13 +179,13 @@ public class NamenodeRest implements Namenode {
     public synchronized void delete(String prefix) {
 
         Document searchQuery = new Document();
-        searchQuery.put("name", prefix);
+        searchQuery.put("_id", prefix);
 
-        if (table.find(Filters.regex("name", prefix)).first() == null) {
+        if (table.find(Filters.regex("_id","^(" +  prefix + ")")).first() == null) {
             logger.info("Namenode delete NOT FOUND");
             throw new WebApplicationException(Status.NOT_FOUND);
         }else{
-            table.deleteMany(Filters.regex("name", prefix));
+            table.deleteMany(Filters.regex("_id", "^(" + prefix + ")"));
         }
 
 
@@ -190,7 +198,7 @@ public class NamenodeRest implements Namenode {
         updateBlocks.put("blocks", blocks);
 
         Document searchQuery = new Document();
-        searchQuery.put("name", name);
+        searchQuery.put("_id", name);
 
         if(!table.updateOne(searchQuery,updateBlocks).wasAcknowledged()){
             throw new WebApplicationException(Status.NOT_FOUND);
@@ -201,11 +209,14 @@ public class NamenodeRest implements Namenode {
     @Override
     public synchronized List<String> read(String name) {
         Document searchQuery = new Document();
-        searchQuery.put("name", name);
-        Document result = table.find(searchQuery).first();
-        if(result != null){
-            return (List<String>)result.get("blocks");
+        searchQuery.put("_id", name);
+        //Document result = table.find(searchQuery).first();
+        Document result = table.find(Filters.regex("_id", name)).first();
+       // for (Document doc : table.find(searchQuery)) {
+            if (result!=null) {
+                return (List<String>) result.get("blocks");
 
+           // }
         }
         throw new WebApplicationException(Status.NOT_FOUND);
 

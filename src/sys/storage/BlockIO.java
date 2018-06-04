@@ -9,7 +9,7 @@ import java.nio.file.Paths;
 
 public class BlockIO {
 
-	public static final String BASE_PATH = "./saved/";
+	public static final String BASE_PATH = "./Datanode/";
 
 	public static void checkAndCreateDirectory() {
 		File directory = new File(BASE_PATH);
