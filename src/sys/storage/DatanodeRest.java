@@ -17,6 +17,8 @@ import org.glassfish.jersey.server.ResourceConfig;
 
 import api.storage.Datanode;
 import kafka.Publisher;
+import utils.Base58;
+import utils.Hash;
 import utils.IP;
 import utils.ServiceDiscovery;
 
@@ -30,6 +32,10 @@ public class DatanodeRest implements Datanode {
 
 	private String address;
 
+
+
+
+
 	public DatanodeRest(String myURL) {
 		this.address = myURL;
 		BlockIO.checkAndCreateDirectory(); //Check if the directory where blocks are going to be create exists, if not creates.
@@ -38,17 +44,21 @@ public class DatanodeRest implements Datanode {
 	@Override
 	public String createBlock(byte[] data) {
 		String blockId = null;
+
+		String hash = Base58.encode(Hash.md5((data)));
+
 		while(true) {
 			try {
 				blockId = utils.Random.key64(); //Generates a random id for the block
-				if(BlockIO.writeBlock(blockId, data)) //Stores the block in a file (false if the file already exists)
+				if(BlockIO.writeBlock(blockId + "-" + hash, data)) //Stores the block in a file (false if the file already exists)
 					break;
 			} catch (IOException e) {
 				logger.log(Level.WARNING, String.format("Error writting block to disk: %s.", blockId));
 			}
+
 		}
 		
-		return address + PATH + "/" + blockId; //Returns the full url to access the block
+		return address + PATH + "/" + blockId + "-" + hash; //Returns the full url to access the block
 		
 	}
 
@@ -62,11 +72,22 @@ public class DatanodeRest implements Datanode {
 
 	@Override
 	public byte[] readBlock(String block) {
+
+		String [] hash1 = block.split("-");
+
 		logger.log(Level.FINE, String.format("Reading block with id %s.", block));
 		byte[] data = BlockIO.readBlock(block); //Reads block from the disk (null if the file is not found)
 		if (data == null) {
 			logger.log(Level.INFO, String.format("Couldn't find block %s", block));
 			throw new WebApplicationException(Status.NOT_FOUND); //Sends 404
+		}
+
+
+		String hash = Base58.encode(Hash.md5((data)));
+		if(!hash.equals(hash1[1])){
+            System.err.println("CORRUPTED:  " + block);
+			return "<<CORRUPTED BLOCKS>>".getBytes();
+
 		}
 		return data;
 	}

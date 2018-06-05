@@ -6,7 +6,7 @@ datanode-port=9991
 datanode-folder=/Datanode
 
 computenode-mainclass=sys.mapreduce.ComputeNodeImpl
-computenode-port=9999
+computenode-port=9992
 
 blobstorage-class=sys.storage.RemoteBlobStorage
 

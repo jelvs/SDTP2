@@ -45,16 +45,18 @@ public class NamenodeRest implements Namenode {
 
     private MongoCollection<Document> table;
 
-    Trie<String, List<String>> names = new PatriciaTrie<>();
+    private MongoClient mongo;
+
+    private MongoDatabase db;
+
+    //Trie<String, List<String>> names = new PatriciaTrie<>();
 
     Map<String, Datanode> datanodes;
 
-    MongoClient mongo;
-    MongoDatabase db;
 
 
     public NamenodeRest() {
-        MongoClientURI uri = new MongoClientURI("mongodb://mongo1,mongo2,mongo3/?w=majority&readConcernLevel=majority&readPreference=secondary");
+        MongoClientURI uri = new MongoClientURI("mongodb://mongo1,mongo2,mongo3/?w=majority&readConcernLevel=majority&readPreference=primary");
         try {
 
             mongo = new MongoClient(uri);
@@ -63,7 +65,7 @@ public class NamenodeRest implements Namenode {
 
             table = db.getCollection("col");
 
-
+            //create index
 
         } catch (Exception e) {
             System.err.println("ERROR CONNECTING TO MONGO");
@@ -137,7 +139,7 @@ public class NamenodeRest implements Namenode {
 
             }
             System.err.println("HELLO");
-            System.err.println("PREFIXOS: " + prefixes);
+            System.err.println("PREFIXOS de " + prefix + ": " + prefixes);
             return prefixes;
 
         /*}catch(Exception e){
@@ -208,17 +210,31 @@ public class NamenodeRest implements Namenode {
 
     @Override
     public synchronized List<String> read(String name) {
+        ArrayList<String> results;
         Document searchQuery = new Document();
         searchQuery.put("_id", name);
-        //Document result = table.find(searchQuery).first();
         Document result = table.find(Filters.regex("_id", name)).first();
-       // for (Document doc : table.find(searchQuery)) {
-            if (result!=null) {
-                return (List<String>) result.get("blocks");
 
-           // }
-        }
-        throw new WebApplicationException(Status.NOT_FOUND);
+            if (result==null) {
+                throw new WebApplicationException(Status.NOT_FOUND);
+            }
+            else{
+
+                //System.err.println("Lista: " + (ArrayList)result.get("blocks", ArrayList.class));
+                results = (ArrayList)result.get("blocks", ArrayList.class);
+                System.err.println("NAME: " + name);
+                for(int i=0 ; i<results.size(); i++){
+                         results.get(i);
+                         System.err.println("Namenode: " +  results.get(i));
+
+                }
+            }
+            //System.err.println("NAMENODES : " + results.toString());
+            return results;
+
+
+        //}
+        //throw new WebApplicationException(Status.NOT_FOUND);
 
     }
 
