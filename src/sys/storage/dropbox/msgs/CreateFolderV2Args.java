@@ -7,5 +7,6 @@ public class CreateFolderV2Args {
 	public CreateFolderV2Args(String path, boolean autorename) {
 		this.path = path;
 		this.autorename = autorename;
+
 	}
 }
