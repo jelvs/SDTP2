@@ -27,8 +27,8 @@ import java.util.logging.Logger;
 public class DropboxDatanodeServer implements Datanode {
     private static final String DROPBOXDATANODE_PORT_DEFAULT = "9999";
     private static boolean kafka = false;
-    private static final String apiKey = "n77x0i4pkxqs8u8";
-    private static final String apiSecret = "dy0zqbsfdh5bhue";
+    private static final String apiKey = "";
+    private static final String apiSecret = "";
     private static final String CREATE = "https://content.dropboxapi.com/2/files/upload";
     private static final String GET = "https://content.dropboxapi.com/2/files/download";
     private static final String LIST_FOLDER_V2_URL = "https://api.dropboxapi.com/2/files/list_folder";
@@ -36,7 +36,7 @@ public class DropboxDatanodeServer implements Datanode {
     private static final String CREATE_FOLDER_V2_URL = "https://api.dropboxapi.com/2/files/create_folder_v2";
     private static final String DELETE = "https://api.dropboxapi.com/2/files/delete_v2";
     private static final String PATH = "/datanode/";
-    private static final String TOKEN = "85W107GG8ZgAAAAAAAAEHhVRsBQO8_GepwhW13OvYnbRuFz1WMB6j1OJPlQ94FlD";
+    private static final String TOKEN = "";
 
     private String path;
 
