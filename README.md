@@ -1,4 +1,4 @@
-# Segundo Projeto de Sistemas Distribuídos
+# Projeto de Sistemas Distribuídos (Distributed Systems Project)
 
 ![alt text](http://asc.di.fct.unl.pt/sd/labs/tp2/tp2-updated-architecture.png)
 
